@@ -6,8 +6,7 @@ async function authMiddleware(request, response, next) {
     const API_KEY = request.query.apiKey
     const REFERER = request.get("referer") || request.get("Referer")
     var ip_info = get_ip(request);
-    console.log(ip_info);
-    const IP = request.socket.remoteAddress
+    const IP = ip_info.clientIp
     const ipInfo = await helper.getIPInfo(IP)
     console.log(ipInfo.data)
     if (!ipInfo) {
