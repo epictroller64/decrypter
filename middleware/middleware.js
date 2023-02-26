@@ -4,7 +4,7 @@ const Client = require("../models/client");
 async function authMiddleware(request, response, next) {
     const API_KEY = request.query.apiKey
     const REFERER = request.get("referer") || request.get("Referer")
-    const IP = request.ip
+    const IP = request.connection.remoteAddress;
     const ipInfo = await helper.getIPInfo(IP)
     console.log(ipInfo.data)
     if (!ipInfo) {
