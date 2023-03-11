@@ -1,9 +1,13 @@
 const express = require("express");
 const app = express();
 const middleware = require("./middleware/middleware")
-const uri = "mongodb+srv://juhankurg:EqNs9smsPS89zwk2@cluster0.abgy1ep.mongodb.net/test"
+const uri = "mongodb+srv://juhankurg:EqNs9smsPS89zwk2@cluster0.abgy1ep.mongodb.net/streams"
 const mongoose = require("mongoose");
 const { run } = require("./process");
+const axios = require("axios");
+const { parse } = require('node-html-parser')
+const Config = require("./models/config")
+
 mongoose.set('strictQuery', false);
 mongoose.connect(uri)
 app.use(middleware.authMiddleware)
@@ -34,31 +38,31 @@ app.get("/process", async function (req, res) {
                         }
                     })
                 } catch (error) {
-                    return res.status(500).jsonp({ message: error.message })
+                    return res.status(500).json({ message: error.message })
                 }
                 if (getSourcesResponse.status === 200) {
                     const { sources, tracks } = getSourcesResponse.data
                     var finalResult = await run(playerLink, sources)
                     if (finalResult == "") {
-                        console.log("FAILED: %s", cachedApikey)
-                        //clear cachedApikey
-                        cachedApikey = ""
+                        await Config.updateOne({ key: "cachedApikey" }, { $set: { value: "" } })
                         finalResult = await run(playerLink, sources)
+                        if (finalResult == undefined) {
+                            return res.status(500).json({ message: "Source empty" })
+                        }
                     }
                     finalResult = finalResult[0]
-                    console.log(finalResult)
-                    const proxy_url = 'http://127.0.0.1:80'
-                    const video_url = 'http://localhost:8010/process?mediaId=9344689&provider=UpCloud'
+                    //console.log(finalResult)
+                    const proxy_url = 'http://172.25.191.149:8080'
                     const file_extension = '.m3u8'
-                    const hls_proxy_url = `${proxy_url}/${btoa(video_url)}${file_extension}`
-                    console.log(hls_proxy_url)
-                    var processedResult
                     try {
-                        processedResult = await axios.get(`http://172.16.110.1:5000/episode_stream?url=${finalResult.file}&title=Black Panther`)
-                    } catch {
-                        return res.status(500).json({ message: "Server error" })
+                        const processResultUrl = `http://192.168.74.233:5000/episode_stream?url=${finalResult.file}&title=Black Panther`
+                        console.log(processResultUrl)
+                        const hls_proxy_url = `${proxy_url}/${btoa(processResultUrl)}${file_extension}`
+                        console.log(hls_proxy_url)
+                        return res.status(200).json({ source: hls_proxy_url })
+                    } catch (error) {
+                        return res.status(500).json({ message: "Server error: " + error.message })
                     }
-                    return res.status(200).send(processedResult.data)
                 }
             }
         }
@@ -68,7 +72,7 @@ app.get("/process", async function (req, res) {
     }
 })
 
-app.listen(8010, () => {
-    console.log(`Example app listening at http://localhost:${8010}`)
+app.listen(8030, '0.0.0.0', () => {
+    console.log(`Example app listening at http://localhost:${8030}`)
 })
 

@@ -2,17 +2,18 @@ const { Parser } = require("acorn")
 const fs = require("fs")
 const walk = require("acorn-walk")
 const { generate } = require('astring')
-const { parse } = require('node-html-parser')
 const { exit } = require("process")
 const axios = require('axios');
 var CryptoJS = require("crypto-js");
 var AES = require("crypto-js/aes");
+const ConfigSchema = require("./models/config")
+const Config = require("./models/config")
 
-var cachedApikey = "b5d4625f855aae905e277c46c65d06da"
 
 async function run(url, sources) {
-    if (cachedApikey != "") {
-        return decrypt(cachedApikey, sources)
+    const cachedApikey = await Config.findOne({ key: "cachedApikey" })
+    if (cachedApikey.value != undefined && cachedApikey.value != "") {
+        return decrypt(cachedApikey.value, sources)
     }
     var final = ""
     const response = await axios.get(url)
@@ -123,7 +124,7 @@ async function run(url, sources) {
     final += ";\nreturn " + firstFunctionName + "(); \n"
     var f = Function(final)
     var decryptionKey = f()[0]
-    cachedApikey = decryptionKey
+    await Config.updateOne({ key: "cachedApikey" }, { "$set": { "value": decryptionKey } })
     console.log("%s | Decryption key: %s", new Date().toISOString(), decryptionKey)
     return decrypt(decryptionKey, sources)
 }
