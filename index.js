@@ -7,11 +7,26 @@ const { run } = require("./process");
 const axios = require("axios");
 const { parse } = require('node-html-parser')
 const Config = require("./models/config")
-
+const m3u8 = require("./m3u8processor")
+const path = require('path');
+const cors = require('cors');
 mongoose.set('strictQuery', false);
 mongoose.connect(uri)
-app.use(middleware.authMiddleware)
+const serverUrl = "http://172.25.181.239:8030/"
 
+app.use(cors())
+
+app.get("/subtitles/:fileName", (req, res) => {
+    const filename = req.params.fileName
+    const filePath = path.join(__dirname, "subtitles", filename);
+    res.status(200).sendFile(filePath)
+})
+
+app.get("/media/:fileName", (req, res) => {
+    const fileName = req.params.fileName
+    const filePath = path.join(__dirname, "media", fileName);
+    res.status(200).sendFile(filePath)
+})
 
 app.get("/process", async function (req, res) {
     const { mediaId, provider } = req.query
@@ -24,7 +39,12 @@ app.get("/process", async function (req, res) {
             const root = parse(embedResponse.data)
             const scripts = root.querySelectorAll("script")
             var playerLink = scripts.find(script => { if (script.attributes.src != undefined) { return script.attributes.src.includes("e4-player.min") } })
-            playerLink = "https://dokicloud.one" + playerLink.attributes.src
+            try {
+                playerLink = "https://dokicloud.one" + playerLink.attributes.src
+            } catch (e) {
+                console.log(e.message)
+                return res.status(500).json({ message: e.message })
+            }
             const embedId = root.querySelector("#vidcloud-player").attributes["data-id"]
             if (provider == "UpCloud") {
                 let url = "https://dokicloud.one/ajax/embed-4/getSources?id=" + embedId
@@ -51,13 +71,13 @@ app.get("/process", async function (req, res) {
                         }
                     }
                     finalResult = finalResult[0]
-                    //console.log(finalResult)
-                    const proxy_url = 'http://172.25.191.149:8080'
+                    const proxy_url = 'http://localhost:8080/'
                     const file_extension = '.m3u8'
                     try {
-                        const processResultUrl = `http://192.168.74.233:5000/episode_stream?url=${finalResult.file}&title=Black Panther`
-                        console.log(processResultUrl)
-                        const hls_proxy_url = `${proxy_url}/${btoa(processResultUrl)}${file_extension}`
+                        console.log(finalResult)
+                        const url = serverUrl + await m3u8.processSubs(tracks, finalResult.file, `${mediaId}_${provider}`)
+                        console.log(url)
+                        const hls_proxy_url = `${proxy_url}${btoa(url)}.m3u8`
                         console.log(hls_proxy_url)
                         return res.status(200).json({ source: hls_proxy_url })
                     } catch (error) {
@@ -71,6 +91,9 @@ app.get("/process", async function (req, res) {
         return res.status(500).json({ status: response.statusCode })
     }
 })
+
+app.use(middleware.authMiddleware)
+
 
 app.listen(8030, '0.0.0.0', () => {
     console.log(`Example app listening at http://localhost:${8030}`)
