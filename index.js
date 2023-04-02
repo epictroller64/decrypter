@@ -1,16 +1,20 @@
-const express = require("express");
-const app = express();
-const middleware = require("./middleware/middleware")
-const uri = "mongodb+srv://juhankurg:EqNs9smsPS89zwk2@cluster0.abgy1ep.mongodb.net/streams"
-const mongoose = require("mongoose");
-const { run } = require("./process");
-const axios = require("axios");
+/* eslint-disable indent */
+const express = require('express')
+const app = express()
+const middleware = require('./middleware/middleware')
+const uri = 'mongodb+srv://juhankurg:EqNs9smsPS89zwk2@cluster0.abgy1ep.mongodb.net/streams'
+const mongoose = require('mongoose')
+const { run } = require('./process')
+const axios = require('axios')
 const { parse } = require('node-html-parser')
 const Config = require("./models/config")
 const m3u8 = require("./m3u8processor")
 const path = require('path');
 const cors = require('cors');
 mongoose.set('strictQuery', false);
+const Config = require('./models/config')
+
+mongoose.set('strictQuery', false)
 mongoose.connect(uri)
 const serverUrl = "http://172.25.181.239:8030/"
 
@@ -31,10 +35,16 @@ app.get("/media/:fileName", (req, res) => {
 app.get("/process", async function (req, res) {
     const { mediaId, provider } = req.query
     console.log(req.query)
-    const response = await axios.get("https://himovies.top/ajax/sources/" + mediaId)
+    const response = await axios.get('https://himovies.top/ajax/sources/' + mediaId)
+    console.log(response.data)
     if (response.status === 200) {
         const { title, link } = response.data
-        const embedResponse = await axios.get(link, { headers: { "Referer": "http://himovies.top" } })
+        var embedResponse = undefined
+        try {
+            embedResponse = await axios.get(link, { headers: { Referer: 'http://himovies.top' } })
+        } catch (error) {
+            return res.status(500).json({ message: error.message })
+        }
         if (embedResponse.status == 200) {
             const root = parse(embedResponse.data)
             const scripts = root.querySelectorAll("script")
@@ -52,9 +62,9 @@ app.get("/process", async function (req, res) {
                 try {
                     getSourcesResponse = await axios.get(url, {
                         headers: {
-                            "Referer": link,
-                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
-                            "X-Requested-With": "XMLHttpRequest"
+                            Referer: link,
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
+                            'X-Requested-With': 'XMLHttpRequest'
                         }
                     })
                 } catch (error) {
@@ -62,14 +72,15 @@ app.get("/process", async function (req, res) {
                 }
                 if (getSourcesResponse.status === 200) {
                     const { sources, tracks } = getSourcesResponse.data
-                    var finalResult = await run(playerLink, sources)
-                    if (finalResult == "") {
-                        await Config.updateOne({ key: "cachedApikey" }, { $set: { value: "" } })
+                    let finalResult = await run(playerLink, sources)
+                    if (finalResult == '') {
+                        await Config.updateOne({ key: 'cachedApikey' }, { $set: { value: '' } })
                         finalResult = await run(playerLink, sources)
                         if (finalResult == undefined) {
-                            return res.status(500).json({ message: "Source empty" })
+                            return res.status(500).json({ message: 'Source empty' })
                         }
                     }
+                    console.log(finalResult)
                     finalResult = finalResult[0]
                     const proxy_url = 'http://localhost:8080/'
                     const file_extension = '.m3u8'
@@ -81,7 +92,7 @@ app.get("/process", async function (req, res) {
                         console.log(hls_proxy_url)
                         return res.status(200).json({ source: hls_proxy_url })
                     } catch (error) {
-                        return res.status(500).json({ message: "Server error: " + error.message })
+                        return res.status(500).json({ message: 'Server error: ' + error.message })
                     }
                 }
             }
@@ -98,4 +109,3 @@ app.use(middleware.authMiddleware)
 app.listen(8030, '0.0.0.0', () => {
     console.log(`Example app listening at http://localhost:${8030}`)
 })
-
