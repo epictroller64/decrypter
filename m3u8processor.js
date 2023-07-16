@@ -4,7 +4,7 @@ const { default: axios } = require('axios');
 const Readable = require('stream').Readable;
 
 var subTemplate = ""
-var serverUrl = "http://172.25.181.239:8030/"
+var serverUrl = "http://192.168.74.233:8030/"
 
 fs.readFile('subtemplate.txt', 'utf8', function (err, data) {
     if (err) {

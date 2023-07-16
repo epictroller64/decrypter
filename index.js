@@ -7,58 +7,57 @@ const mongoose = require('mongoose')
 const { run } = require('./process')
 const axios = require('axios')
 const { parse } = require('node-html-parser')
-const Config = require("./models/config")
-const m3u8 = require("./m3u8processor")
-const path = require('path');
-const cors = require('cors');
-mongoose.set('strictQuery', false);
 const Config = require('./models/config')
+const m3u8 = require('./m3u8processor')
+const path = require('path')
+const cors = require('cors')
+mongoose.set('strictQuery', false)
 
 mongoose.set('strictQuery', false)
 mongoose.connect(uri)
-const serverUrl = "http://172.25.181.239:8030/"
+const serverUrl = 'http://192.168.74.233:8030/'
 
 app.use(cors())
 
-app.get("/subtitles/:fileName", (req, res) => {
+app.get('/subtitles/:fileName', (req, res) => {
     const filename = req.params.fileName
-    const filePath = path.join(__dirname, "subtitles", filename);
+    const filePath = path.join(__dirname, 'subtitles', filename)
     res.status(200).sendFile(filePath)
 })
 
-app.get("/media/:fileName", (req, res) => {
+app.get('/media/:fileName', (req, res) => {
     const fileName = req.params.fileName
-    const filePath = path.join(__dirname, "media", fileName);
+    const filePath = path.join(__dirname, 'media', fileName)
     res.status(200).sendFile(filePath)
 })
 
-app.get("/process", async function (req, res) {
+app.get('/process', async function (req, res) {
     const { mediaId, provider } = req.query
     console.log(req.query)
     const response = await axios.get('https://himovies.top/ajax/sources/' + mediaId)
     console.log(response.data)
     if (response.status === 200) {
         const { title, link } = response.data
-        var embedResponse = undefined
+        let embedResponse
         try {
             embedResponse = await axios.get(link, { headers: { Referer: 'http://himovies.top' } })
         } catch (error) {
             return res.status(500).json({ message: error.message })
         }
-        if (embedResponse.status == 200) {
+        if (embedResponse.status === 200) {
             const root = parse(embedResponse.data)
-            const scripts = root.querySelectorAll("script")
-            var playerLink = scripts.find(script => { if (script.attributes.src != undefined) { return script.attributes.src.includes("e4-player.min") } })
+            const scripts = root.querySelectorAll('script')
+            let playerLink = scripts.find(script => { if (script.attributes.src != undefined) { return script.attributes.src.includes('e4-player.min') } })
             try {
-                playerLink = "https://dokicloud.one" + playerLink.attributes.src
+                playerLink = 'https://dokicloud.one' + playerLink.attributes.src
             } catch (e) {
                 console.log(e.message)
                 return res.status(500).json({ message: e.message })
             }
-            const embedId = root.querySelector("#vidcloud-player").attributes["data-id"]
-            if (provider == "UpCloud") {
-                let url = "https://dokicloud.one/ajax/embed-4/getSources?id=" + embedId
-                var getSourcesResponse
+            const embedId = root.querySelector('#vidcloud-player').attributes['data-id']
+            if (provider === 'UpCloud') {
+                const url = 'https://dokicloud.one/ajax/embed-4/getSources?id=' + embedId
+                let getSourcesResponse
                 try {
                     getSourcesResponse = await axios.get(url, {
                         headers: {
@@ -104,7 +103,6 @@ app.get("/process", async function (req, res) {
 })
 
 app.use(middleware.authMiddleware)
-
 
 app.listen(8030, '0.0.0.0', () => {
     console.log(`Example app listening at http://localhost:${8030}`)
